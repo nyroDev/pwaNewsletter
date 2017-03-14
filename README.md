@@ -1,2 +1,4 @@
-# pwaNewsletter
-PWA test to create an offline email subscription app
+pwaNewsletter
+=============
+
+A Symfony project created on March 7, 2017, 10:17 pm.
