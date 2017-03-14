@@ -31,7 +31,7 @@ class DefaultController extends Controller
         
         $form->handleRequest($request);
         
-        $isSw = $request->headers->getBoolean($this->getParameter('headerSW'));
+        $isSw = (bool) $request->headers->get($this->getParameter('headerSW'));
         
         if ($form->isSubmitted() && $form->isValid()) {
             $em = $this->getDoctrine()->getManager();
