@@ -10,6 +10,8 @@ var cacheName = 'pwa-newsletter-cache-v1',
 
 self.addEventListener('install', function(event) {
     // On install, just add our cache
+    event.waitUntil(self.skipWaiting());
+    return;
     event.waitUntil(
         caches.open(cacheName)
             .then(function(cache) {
@@ -83,7 +85,7 @@ function getFirstCached() {
                 console.log('firstCachedError');
                 reject(event);
             };
-            
+
             var store = transaction.objectStore(dbCollection);
             store.openCursor().onsuccess = function(event) {
                 var cursor = event.target.result;
@@ -112,7 +114,7 @@ function addCached(serialized) {
             transaction.onerror = function(event) {
                 reject(event);
             };
-            
+
             transaction.objectStore(dbCollection).add(serialized);
         });
     });
@@ -124,11 +126,11 @@ function deserialize(serialized) {
 };
 
 // Send cached requests, one by one
-function sendCached() {
+function sendCached(isSync) {
     return getNbCachedRequests()
         .then(function(nb) {
             if (nb) {
-                return new Promise(function(resolve) {
+                return new Promise(function(resolve, reject) {
                     var lastSerialized;
                     getFirstCached()
                         .then(function(serialized) {
@@ -146,14 +148,21 @@ function sendCached() {
                         })
                         .then(function(response) {
                             if (response && response.ok) {
-                                return sendCached().then(function(nb) {
+                                return sendCached(isSync).then(function(nb) {
                                     resolve(nb);
                                 });
+                            } else if (isSync) {
+                                console.log('response failed, reject to request another sync later');
+                                reject();
                             }
                         })
                         .catch(function() {
                             if (lastSerialized) {
                                 addCached(lastSerialized);
+                            }
+                            console.log('catch')
+                            if (isSync) {
+                                console.log('catch Is Sync, do something ?')
                             }
                             resolve(nb);
                         });
@@ -171,7 +180,7 @@ function serialize(request) {
         headers[entry[0]] = entry[1];
     }
     headers['<?php echo $headerSW ?>'] = true;
-    
+
     var serialized = {
         url: request.url,
         headers: headers,
@@ -190,7 +199,7 @@ function serialize(request) {
                 return Promise.resolve(serialized);
             });
     }
-    
+
     return Promise.resolve(serialized);
 };
 
@@ -210,7 +219,7 @@ self.addEventListener('fetch', function(event) {
                 addCached(serialized)
                     .then(function() {
                         sendCached().then(function() {
-                            requestUpdateCache(); 
+                            requestUpdateCache();
                         });
                     });
             });
@@ -237,5 +246,13 @@ self.addEventListener('fetch', function(event) {
                     return fetch(event.request);
                 })
         );
+    }
+});
+
+self.addEventListener('sync', function(event) {
+    console.log('sync', event);
+    if (event.tag == 'sendCached') {
+        console.log('sync requested');
+        event.waitUntil(sendCached(true));
     }
 });
