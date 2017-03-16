@@ -129,47 +129,43 @@ function deserialize(serialized) {
 function sendCached(isSync) {
     return getNbCachedRequests()
         .then(function(nb) {
-            if (nb) {
-                return new Promise(function(resolve, reject) {
-                    var lastSerialized;
-                    getFirstCached()
-                        .then(function(serialized) {
-                            lastSerialized = serialized;
-                            if (serialized) {
-                                return deserialize(serialized);
-                            } else {
-                                return false;
-                            }
-                        }).then(function(request) {
-                            if (!request) {
-                                return false;
-                            }
-                            return fetch(request);
-                        })
-                        .then(function(response) {
-                            if (response && response.ok) {
-                                return sendCached(isSync).then(function(nb) {
-                                    resolve(nb);
-                                });
-                            } else if (isSync) {
-                                console.log('response failed, reject to request another sync later');
-                                reject();
-                            }
-                        })
-                        .catch(function() {
-                            if (lastSerialized) {
-                                addCached(lastSerialized);
-                            }
-                            console.log('catch')
-                            if (isSync) {
-                                console.log('catch Is Sync, do something ?')
-                            }
-                            resolve(nb);
-                        });
-                });
-            } else {
+            if (!nb) {
+                // Nothing cached, resolve it with 0 still in cache
                 return Promise.resolve(0);
             }
+
+            var lastSerialized;
+            return getFirstCached()
+                    .then(function(serialized) {
+                        lastSerialized = serialized;
+                        if (serialized) {
+                            return deserialize(serialized);
+                        } else {
+                            return Promise.reject(false);
+                        }
+                    }).then(function(request) {
+                        return fetch(request);
+                    })
+                    .then(function(response) {
+                        if (response && response.ok) {
+                            // Clean last serialized to be sure it's not handled by next catch
+                            lastSerialized = false;
+                            return sendCached(isSync);
+                        } else {
+                            return Promise.reject(false);
+                        }
+                    })
+                    .catch(function() {
+                        if (lastSerialized) {
+                            // Something went wrong, readd the lastSerialized request into cache
+                            addCached(lastSerialized);
+                        }
+                        if (isSync) {
+                            // In sync mode, we want to reject the promis in order to sync later
+                            return Promise.reject(false);
+                        }
+                        return Promise.resolve(nb);
+                    });
         });
 };
 
