@@ -17,7 +17,7 @@ class DefaultController extends Controller
     public function indexAction(Request $request)
     {
         $email = new Email();
-        
+
         $form = $this->createFormBuilder($email, [
                     'attr'=>[
                         'id'=>'emailForm',
@@ -28,19 +28,24 @@ class DefaultController extends Controller
                 ->add('email')
                 ->add('save', SubmitType::class)
                 ->getForm();
-        
+
         $form->handleRequest($request);
-        
+
         $isSw = (bool) $request->headers->get($this->getParameter('headerSW'));
-        
+
+        if ($isSw) {
+            usleep(rand(100, 2000));
+            //throw $this->createNotFoundException();
+        }
+
         if ($form->isSubmitted() && $form->isValid()) {
             $em = $this->getDoctrine()->getManager();
-            
+
             $repo = $em->getRepository(Email::class);
             $existing = $repo->findOneBy([
                 'email' => $email->getEmail()
             ]);
-            
+
             if (!$existing) {
                 $em->persist($email);
             } else {
@@ -54,7 +59,7 @@ class DefaultController extends Controller
             }
             return $this->redirectToRoute('homepage');
         }
-        
+
         if ($isSw) {
             return new Response('ko');
         }
@@ -62,7 +67,7 @@ class DefaultController extends Controller
             'form' => $form->createView(),
         ]);
     }
-    
+
     /**
      * @Route("/sw.js", name="sw")
      */
@@ -70,12 +75,12 @@ class DefaultController extends Controller
     {
         $response = new Response();
         $response->headers->set('Content-Type', 'application/javascript');
-        
+
         return $this->render('AppBundle::sw.js.php', [
             'headerSW' => $this->getParameter('headerSW')
         ], $response);
     }
-    
+
     /**
      * @Route("/favicons/manifest.json", name="manifest")
      */
@@ -83,7 +88,7 @@ class DefaultController extends Controller
     {
         $response = new Response();
         $response->headers->set('Content-Type', 'application/json');
-        
+
         return $this->render('AppBundle::manifest.json.php', [], $response);
     }
 }
