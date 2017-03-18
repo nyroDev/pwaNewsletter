@@ -10,8 +10,7 @@ var cacheName = 'pwa-newsletter-cache-v1',
 
 self.addEventListener('install', function(event) {
     // On install, just add our cache
-    event.waitUntil(self.skipWaiting());
-    return;
+    //event.waitUntil(self.skipWaiting()); return;
     event.waitUntil(
         caches.open(cacheName)
             .then(function(cache) {
