@@ -34,7 +34,8 @@ class DefaultController extends Controller
         $isSw = (bool) $request->headers->get($this->getParameter('headerSW'));
 
         if ($isSw) {
-            usleep(rand(100, 2000));
+            usleep(rand(100, 2000) * 1000);
+            usleep(rand(2000, 4000) * 1000);
             //throw $this->createNotFoundException();
         }
 

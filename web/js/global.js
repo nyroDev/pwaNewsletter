@@ -16,36 +16,97 @@ if ('serviceWorker' in navigator) {
                             if (registration.sync) {
                                 registration.sync.register('sendCached');
                             }
-                        };
-
-                    var checkCache = function() {
-                        // Check cache by calling a JSON request handled by the SW
-                        if (cacheChecking) {
-                            return;
-                        }
-                        cacheChecking = true;
-                        nbCached.classList.add('loading');
-                        fetch(js.dataset.cacheurl)
-                            .then(function(response) {
-                                cacheChecking = false;
-                                return response.json();
-                            })
-                            .then(function(data) {
+                        },
+                        nbLoading = 0,
+                        addLoading = function() {
+                            if (nbLoading == 0) {
+                                nbCached.classList.add('loading');
+                            }
+                            nbLoading++;
+                        },
+                        removeLoading = function() {
+                            nbLoading--;
+                            if (nbLoading == 0) {
                                 nbCached.classList.remove('loading');
-                                if (data.nb) {
-                                    // We have some cached data in server
-                                    nbCached.innerHTML = data.nb;
-                                    // Request background sync
-                                    requestSync();
-                                } else {
-                                    nbCached.innerHTML = '';
+                            }
+                        },
+                        setCacheNb = function(nb) {
+                            if (nb) {
+                                // We have some cached data in server
+                                nbCached.innerHTML = nb;
+                                requestSync();
+                            } else {
+                                nbCached.innerHTML = '';
+                            }
+                        },
+                        checkCache = function(requestSend) {
+                            // Check cache by calling a JSON request handled by the SW
+                            if (cacheChecking) {
+                                return;
+                            }
+                            cacheChecking = true;
+                            addLoading();
+                            fetch(js.dataset.cacheurl+(requestSend ? '?requestSend' : ''))
+                                .then(function(response) {
+                                    cacheChecking = false;
+                                    return response.json();
+                                })
+                                .then(function(data) {
+                                    removeLoading();
+                                    setCacheNb(data.nb);
+                                });
+                        },
+                        registerAppInstall = function() {
+                            // from https://developers.google.com/web/fundamentals/engage-and-retain/app-install-banners/
+                            var deferredPrompt,
+                                btnAppInstall;
+
+                            window.addEventListener('beforeinstallprompt', function(e) {
+                                console.log('beforeinstallprompt Event fired');
+                                e.preventDefault();
+
+                                // Stash the event so it can be triggered later.
+                                deferredPrompt = e;
+
+                                if (!btnAppInstall) {
+
+                                    btnAppInstall = document.createElement('a');
+                                    btnAppInstall.setAttribute('href', '#');
+                                    btnAppInstall.setAttribute('id', 'btnAppInstall');
+                                    btnAppInstall.innerHTML = 'Add to homescreen';
+
+                                    document.querySelector('body').appendChild(btnAppInstall);
+
+                                    btnAppInstall.addEventListener('click', function(e) {
+                                        e.preventDefault();
+
+                                        deferredPrompt.prompt();
+
+                                        // Follow what the user has done with the prompt.
+                                        deferredPrompt.userChoice.then(function(choiceResult) {
+                                            console.log(choiceResult.outcome);
+
+                                            if (choiceResult.outcome == 'dismissed') {
+                                                console.log('User cancelled home screen install');
+                                            } else {
+                                                console.log('User added to home screen');
+                                            }
+
+                                            // We no longer need the prompt.  Clear it up.
+                                            deferredPrompt = null;
+                                            document.querySelector('body').removeChild(btnAppInstall);
+                                            btnAppInstall = false;
+                                        });
+                                    });
                                 }
+
+                                return false;
                             });
-                    };
+                        };
 
                     nbCached.addEventListener('click', function(event) {
                         event.preventDefault();
-                        checkCache();
+                        checkCache(true);
                     });
 
                     // When we go back online, check the cache
@@ -58,75 +119,45 @@ if ('serviceWorker' in navigator) {
 
                     // SW can force cache checking after sending element
                     navigator.serviceWorker.addEventListener('message', function(event) {
-                        if (event.data == 'checkCache') {
-                            console.log('Cache update requested by SW');
-                            checkCache();
+                        if (event.data.data) {
+                            switch(event.data.data) {
+                                case 'checkCache':
+                                    console.log('Cache update requested by SW');
+                                    checkCache();
+                                    break;
+                                case 'cacheNb':
+                                    console.log('Cache nb sent by SW');
+                                    setCacheNb(event.data.nb);
+                                    break;
+                                case 'addLoading':
+                                    console.log('addLoading by SW');
+                                    addLoading();
+                                    break;
+                                case 'removeLoading':
+                                    console.log('removeLoading by SW');
+                                    removeLoading();
+                                    break;
+                            }
                         }
                     });
 
                     // Handle form to be an AJAX request
                     emailForm.addEventListener('submit',  function(event) {
                         event.preventDefault();
+                        addLoading();
                         fetch(emailForm.getAttribute('action'), {
                             method: emailForm.getAttribute('method'),
                             body: new FormData(emailForm)
                         }).then(function(response) {
                             return response.json();
-                        }).then(function(data) {
+                        }).then(function() {
+                            removeLoading();
                             form_email.value = '';
                         });
                     });
 
                     // Force check cache on load in case we have some cached elements
                     checkCache();
-
-                    function registerAppInstall() {
-                        // from https://developers.google.com/web/fundamentals/engage-and-retain/app-install-banners/
-                        var deferredPrompt,
-                            btnAppInstall;
-
-                        window.addEventListener('beforeinstallprompt', function(e) {
-                            console.log('beforeinstallprompt Event fired');
-                            e.preventDefault();
-
-                            // Stash the event so it can be triggered later.
-                            deferredPrompt = e;
-
-                            if (!btnAppInstall) {
-
-                                btnAppInstall = document.createElement('a');
-                                btnAppInstall.setAttribute('href', '#');
-                                btnAppInstall.setAttribute('id', 'btnAppInstall');
-                                btnAppInstall.innerHTML = 'Add to homescreen';
-
-                                document.querySelector('body').appendChild(btnAppInstall);
-
-                                btnAppInstall.addEventListener('click', function(e) {
-                                    e.preventDefault();
-
-                                    deferredPrompt.prompt();
-
-                                    // Follow what the user has done with the prompt.
-                                    deferredPrompt.userChoice.then(function(choiceResult) {
-                                        console.log(choiceResult.outcome);
-
-                                        if (choiceResult.outcome == 'dismissed') {
-                                            console.log('User cancelled home screen install');
-                                        } else {
-                                            console.log('User added to home screen');
-                                        }
-
-                                        // We no longer need the prompt.  Clear it up.
-                                        deferredPrompt = null;
-                                        document.querySelector('body').removeChild(btnAppInstall);
-                                        btnAppInstall = false;
-                                    });
-                                });
-                            }
-
-                            return false;
-                        });
-                    };
 
                     registerAppInstall();
                 }).catch(function(err) {

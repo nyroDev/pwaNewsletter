@@ -38,7 +38,36 @@ function postMessage(msg) {
 // Request clients to update their cache by sending them a message
 function requestUpdateCache() {
     console.log('send cache update');
-    postMessage('checkCache');
+    postMessage({
+        data: 'checkCache'
+    });
+};
+
+// Request clients to update their cache by sending them a message
+function sendCacheNb() {
+    console.log('send cache nb');
+    getNbCachedRequests().then(function(nb) {
+        postMessage({
+            data: 'cacheNb',
+            nb: nb
+        });
+    });
+};
+
+// Request clients to increment the loading counter
+function addClientLoading() {
+    console.log('send addLoading');
+    postMessage({
+        data: 'addLoading'
+    });
+};
+
+// Request clients to decreament the loading counter
+function removeClientLoading() {
+    console.log('send removeLoading');
+    postMessage({
+        data: 'removeLoading'
+    });
 };
 
 // Open IndexedDB as promise, init it if needed
@@ -109,6 +138,7 @@ function addCached(serialized) {
 
             transaction.oncomplete = function() {
                 resolve(true);
+                sendCacheNb();
             };
 
             transaction.onerror = function(event) {
@@ -144,21 +174,27 @@ function sendCached(isSync) {
                             return Promise.reject(false);
                         }
                     }).then(function(request) {
+                        addClientLoading();
                         return fetch(request);
                     })
                     .then(function(response) {
                         if (response && response.ok) {
                             // Clean last serialized to be sure it's not handled by next catch
                             lastSerialized = false;
+                            sendCacheNb();
+                            removeClientLoading();
                             return sendCached(isSync);
                         } else {
                             return Promise.reject(false);
                         }
                     })
                     .catch(function() {
+                        removeClientLoading();
                         if (lastSerialized) {
                             // Something went wrong, readd the lastSerialized request into cache
-                            addCached(lastSerialized);
+                            addCached(lastSerialized).then(function() {
+                                sendCacheNb();
+                            });
                         }
                         if (isSync) {
                             // In sync mode, we want to reject the promis in order to sync later
@@ -214,13 +250,16 @@ self.addEventListener('fetch', function(event) {
             .then(function(serialized) {
                 addCached(serialized)
                     .then(function() {
-                        sendCached().then(function() {
-                            requestUpdateCache();
-                        });
+                        sendCached();
                     });
             });
     } else if (event.request.url.indexOf(nbCacheUrl) > -1) {
         // We requested the cache number, try to send it and then return the response
+        
+        if (event.request.url.indexOf('requestSend') > -1) {
+            sendCached();
+        }
+        
         event.respondWith(sendCached().then(function(nb) {
             return new Response(
                 JSON.stringify({
@@ -247,7 +286,7 @@ self.addEventListener('fetch', function(event) {
 
 self.addEventListener('sync', function(event) {
     console.log('sync', event);
-    if (event.tag == 'sendCached') {
+    if (event.tag == 'sendCached' || event.tag == 'test-tag-from-devtools') {
         console.log('sync requested');
         event.waitUntil(sendCached(true));
     }
