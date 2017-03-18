@@ -53,6 +53,23 @@ class DefaultController extends Controller
             }
             $email->setInserted(new \DateTime());
             $em->flush();
+            
+            // Send confirmation email with data
+            
+            $messageCont = array_filter([
+                'Thanks for subscribing to PWA Newsletter',
+                $existing ? 'You was already existing in the database.' : null,
+                'Date of received submission: '.date('Y-m-d H:i:s'),
+                $isSw ? 'From Service worker' : 'Directly from browser'
+            ]);
+
+            $message = \Swift_Message::newInstance()
+                ->setSubject('PWA Newsletter subscription')
+                ->setFrom('cedric@nyrodev.com')
+                ->setTo($existing->getEmail())
+                ->setBody(implode("\n", $messageCont), 'text/plain')
+            ;
+            $this->get('mailer')->send($message);
 
             if ($isSw) {
                 return new Response('ok');
