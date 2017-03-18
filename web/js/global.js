@@ -11,12 +11,8 @@ if ('serviceWorker' in navigator) {
                     var nbCached = document.getElementById('nbCached'),
                         emailForm = document.getElementById('emailForm'),
                         form_email = document.getElementById('form_email'),
+                        logCont = document.getElementById('log'),
                         cacheChecking = false,
-                        requestSync = function() {
-                            if (registration.sync) {
-                                registration.sync.register('sendCached');
-                            }
-                        },
                         nbLoading = 0,
                         addLoading = function() {
                             if (nbLoading == 0) {
@@ -34,7 +30,6 @@ if ('serviceWorker' in navigator) {
                             if (nb) {
                                 // We have some cached data in server
                                 nbCached.innerHTML = nb;
-                                requestSync();
                             } else {
                                 nbCached.innerHTML = '';
                             }
@@ -109,11 +104,11 @@ if ('serviceWorker' in navigator) {
                         checkCache(true);
                     });
 
-                    // When we go back online, check the cache
-                    /* Disable it as we're using background sync
+                    // When we go back online, check the cache. This could be used to do it faster than background sync in some cases
+                    /*
                     window.addEventListener('online',  function(event) {
-                        console.log('Just went online, checkCache');
-                        checkCache();
+                        console.log('Just went online, checkCache and request sending');
+                        checkCache(true);
                     });
                     // */
 
@@ -136,6 +131,9 @@ if ('serviceWorker' in navigator) {
                                 case 'removeLoading':
                                     console.log('removeLoading by SW');
                                     removeLoading();
+                                    break;
+                                case 'alert':
+                                    logCont.innerHTML = event.data.alert+'<br />'+logCont.innerHTML;
                                     break;
                             }
                         }

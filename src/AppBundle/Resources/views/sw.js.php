@@ -69,6 +69,28 @@ function removeClientLoading() {
     });
 };
 
+// Show alert on clients
+function sendAlert(alert) {
+    console.log('send alert');
+    postMessage({
+        data: 'alert',
+        alert: alert
+    });
+};
+
+// Request background sync
+function requestSync() {
+    sendAlert('request SYNC');
+    if (!self.registration || !self.registration.sync) {
+        return;
+    }
+    self.registration.sync.register('sendCached').then(function() {
+        sendAlert('registaration sync OK');
+    }, function() {
+        sendAlert('registaration sync FAILED');
+    });
+};
+
 // Open IndexedDB as promise, init it if needed
 function openDB() {
     return new Promise(function(resolve, reject) {
@@ -183,7 +205,8 @@ function sendCached(isSync) {
                             sendCacheNb();
                             removeClientLoading();
                             return sendCached(isSync);
-                        } else {
+                        } else {;
+                            requestSync();
                             return Promise.reject(false);
                         }
                     })
@@ -191,13 +214,14 @@ function sendCached(isSync) {
                         removeClientLoading();
                         if (lastSerialized) {
                             // Something went wrong, readd the lastSerialized request into cache
-                            addCached(lastSerialized).then(function() {
-                                sendCacheNb();
-                            });
+                            addCached(lastSerialized);
                         }
                         if (isSync) {
                             // In sync mode, we want to reject the promis in order to sync later
+                            sendAlert('REJECT Promise');
                             return Promise.reject(false);
+                        } else {
+                            requestSync();
                         }
                         return Promise.resolve(nb);
                     });
@@ -259,7 +283,7 @@ self.addEventListener('fetch', function(event) {
             sendCached();
         }
         
-        event.respondWith(sendCached().then(function(nb) {
+        event.respondWith(getNbCachedRequests().then(function(nb) {
             return new Response(
                 JSON.stringify({
                     nb: nb
@@ -287,6 +311,7 @@ self.addEventListener('sync', function(event) {
     console.log('sync', event);
     if (event.tag == 'sendCached' || event.tag == 'test-tag-from-devtools') {
         console.log('sync requested');
+        sendAlert('SYYYYNC start waiting');
         event.waitUntil(sendCached(true));
     }
 });

@@ -18,6 +18,7 @@
     <body>
         <p>Please enter your email address to receive great news from us!</p>
         <?php echo $view['form']->form($form) ?>
+        <div id="log"></div>
         <a id="nbCached" href="#"></a>
         <script id="js"
             data-sw="<?php echo $view['router']->path('sw') ?>"

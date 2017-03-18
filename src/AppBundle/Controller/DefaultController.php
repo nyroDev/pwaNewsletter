@@ -34,9 +34,8 @@ class DefaultController extends Controller
         $isSw = (bool) $request->headers->get($this->getParameter('headerSW'));
 
         if ($isSw) {
-            usleep(rand(100, 2000) * 1000);
+            // Add some random delay for the demo
             usleep(rand(2000, 4000) * 1000);
-            //throw $this->createNotFoundException();
         }
 
         if ($form->isSubmitted() && $form->isValid()) {
