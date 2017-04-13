@@ -25,7 +25,12 @@ class DefaultController extends Controller
                     'action' => $this->generateUrl('homepage'),
                     'csrf_protection' => false
                 ])
-                ->add('email')
+                ->add('email', null, [
+                    'label' => 'Email: ',
+                    'attr' => [
+                        'placeholder' => 'jack@gmail.com',
+                    ]
+                ])
                 ->add('save', SubmitType::class)
                 ->getForm();
 
@@ -66,7 +71,7 @@ class DefaultController extends Controller
             $message = \Swift_Message::newInstance()
                 ->setSubject('PWA Newsletter subscription')
                 ->setFrom('cedric@nyrodev.com')
-                ->setTo($existing->getEmail())
+                ->setTo($email->getEmail())
                 ->setBody(implode("\n", $messageCont), 'text/plain')
             ;
             $this->get('mailer')->send($message);

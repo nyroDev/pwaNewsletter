@@ -104,7 +104,8 @@ if ('serviceWorker' in navigator) {
                         checkCache(true);
                     });
 
-                    // When we go back online, check the cache. This could be used to do it faster than background sync in some cases
+                    // When we go back online, check the cache.
+                    // This could be used to do it faster than background sync in some cases.
                     /*
                     window.addEventListener('online',  function(event) {
                         console.log('Just went online, checkCache and request sending');
@@ -116,10 +117,6 @@ if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.addEventListener('message', function(event) {
                         if (event.data.data) {
                             switch(event.data.data) {
-                                case 'checkCache':
-                                    console.log('Cache update requested by SW');
-                                    checkCache();
-                                    break;
                                 case 'cacheNb':
                                     console.log('Cache nb sent by SW');
                                     setCacheNb(event.data.nb);

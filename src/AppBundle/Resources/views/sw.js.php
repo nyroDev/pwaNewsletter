@@ -10,7 +10,6 @@ var cacheName = 'pwa-newsletter-cache-v1',
 
 self.addEventListener('install', function(event) {
     // On install, just add our cache
-    //event.waitUntil(self.skipWaiting()); return;
     event.waitUntil(
         caches.open(cacheName)
             .then(function(cache) {
@@ -32,14 +31,6 @@ function postMessage(msg) {
                 client.postMessage(msg);
             });
         });
-};
-
-// Request clients to update their cache by sending them a message
-function requestUpdateCache() {
-    console.log('send cache update');
-    postMessage({
-        data: 'checkCache'
-    });
 };
 
 // Request clients to update their cache by sending them a message
@@ -84,7 +75,7 @@ function requestSync() {
     if (!self.registration || !self.registration.sync) {
         return;
     }
-    self.registration.sync.register('sendCached').then(function() {
+    self.registration.sync.register('syncCached').then(function() {
         sendAlert('registaration sync OK');
     }, function() {
         sendAlert('registaration sync FAILED');
@@ -309,7 +300,7 @@ self.addEventListener('fetch', function(event) {
 
 self.addEventListener('sync', function(event) {
     console.log('sync', event);
-    if (event.tag == 'sendCached' || event.tag == 'test-tag-from-devtools') {
+    if (event.tag == 'syncCached' || event.tag == 'test-tag-from-devtools') {
         console.log('sync requested');
         sendAlert('SYYYYNC start waiting');
         event.waitUntil(sendCached(true));

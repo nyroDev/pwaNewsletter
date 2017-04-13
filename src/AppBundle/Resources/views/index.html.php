@@ -13,11 +13,12 @@
         <link rel="shortcut icon" href="<?php echo $view['assets']->getUrl('favicons/favicon.ico') ?>">
         <meta name="msapplication-config" content="<?php echo $view['assets']->getUrl('favicons/browserconfig.xml') ?>">
         <meta name="theme-color" content="#ffffff">
-        
     </head>
     <body>
         <p>Please enter your email address to receive great news from us!</p>
         <?php echo $view['form']->form($form) ?>
+        <br />
+        <a href="https://github.com/nyroDev/pwaNewsletter" target="_blank">Source code</a><br />
         <div id="log"></div>
         <a id="nbCached" href="#"></a>
         <script id="js"

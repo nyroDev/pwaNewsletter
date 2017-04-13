@@ -34,9 +34,52 @@ function postMessage(msg) {
 };
 
 // Request clients to update their cache by sending them a message
-function requestUpdateCache() {
-    console.log('send cache update');
-    postMessage('checkCache');
+function sendCacheNb() {
+    console.log('send cache nb');
+    getNbCachedRequests().then(function(nb) {
+        postMessage({
+            data: 'cacheNb',
+            nb: nb
+        });
+    });
+};
+
+// Request clients to increment the loading counter
+function addClientLoading() {
+    console.log('send addLoading');
+    postMessage({
+        data: 'addLoading'
+    });
+};
+
+// Request clients to decreament the loading counter
+function removeClientLoading() {
+    console.log('send removeLoading');
+    postMessage({
+        data: 'removeLoading'
+    });
+};
+
+// Show alert on clients
+function sendAlert(alert) {
+    console.log('send alert');
+    postMessage({
+        data: 'alert',
+        alert: alert
+    });
+};
+
+// Request background sync
+function requestSync() {
+    sendAlert('request SYNC');
+    if (!self.registration || !self.registration.sync) {
+        return;
+    }
+    self.registration.sync.register('syncCached').then(function() {
+        sendAlert('registaration sync OK');
+    }, function() {
+        sendAlert('registaration sync FAILED');
+    });
 };
 
 // Open IndexedDB as promise, init it if needed
@@ -83,7 +126,7 @@ function getFirstCached() {
                 console.log('firstCachedError');
                 reject(event);
             };
-            
+
             var store = transaction.objectStore(dbCollection);
             store.openCursor().onsuccess = function(event) {
                 var cursor = event.target.result;
@@ -107,12 +150,13 @@ function addCached(serialized) {
 
             transaction.oncomplete = function() {
                 resolve(true);
+                sendCacheNb();
             };
 
             transaction.onerror = function(event) {
                 reject(event);
             };
-            
+
             transaction.objectStore(dbCollection).add(serialized);
         });
     });
@@ -124,43 +168,59 @@ function deserialize(serialized) {
 };
 
 // Send cached requests, one by one
-function sendCached() {
+function sendCached(isSync) {
     return getNbCachedRequests()
         .then(function(nb) {
-            if (nb) {
-                return new Promise(function(resolve) {
-                    var lastSerialized;
-                    getFirstCached()
-                        .then(function(serialized) {
-                            lastSerialized = serialized;
-                            if (serialized) {
-                                return deserialize(serialized);
-                            } else {
-                                return false;
-                            }
-                        }).then(function(request) {
-                            if (!request) {
-                                return false;
-                            }
-                            return fetch(request);
-                        })
-                        .then(function(response) {
-                            if (response && response.ok) {
-                                return sendCached().then(function(nb) {
-                                    resolve(nb);
-                                });
-                            }
-                        })
-                        .catch(function() {
-                            if (lastSerialized) {
-                                addCached(lastSerialized);
-                            }
-                            resolve(nb);
-                        });
-                });
-            } else {
+            if (!nb) {
+                // Nothing cached, resolve it with 0 still in cache
                 return Promise.resolve(0);
             }
+
+            var lastSerialized;
+            // get first cached
+            return getFirstCached()
+                    .then(function(serialized) {
+                        // unserialize it
+                        lastSerialized = serialized;
+                        if (serialized) {
+                            return deserialize(serialized);
+                        } else {
+                            return Promise.reject(false);
+                        }
+                    }).then(function(request) {
+                        // Inform client of loading and start fetch
+                        addClientLoading();
+                        return fetch(request);
+                    })
+                    .then(function(response) {
+                        if (response && response.ok) {
+                            // Clean last serialized to be sure it's not handled by next catch
+                            lastSerialized = false;
+                            sendCacheNb();
+                            removeClientLoading();
+                            return sendCached(isSync);
+                        } else {
+                            // Error, so we request later sync
+                            requestSync();
+                            return Promise.reject(false);
+                        }
+                    })
+                    .catch(function() {
+                        // Remove client loading
+                        removeClientLoading();
+                        if (lastSerialized) {
+                            // Something went wrong, re-add the lastSerialized request into cache
+                            addCached(lastSerialized);
+                        }
+                        if (isSync) {
+                            // In sync mode, we want to reject the promise in order to retry later
+                            sendAlert('REJECT Promise');
+                            return Promise.reject(false);
+                        } else {
+                            requestSync();
+                        }
+                        return Promise.resolve(nb);
+                    });
         });
 };
 
@@ -171,7 +231,7 @@ function serialize(request) {
         headers[entry[0]] = entry[1];
     }
     headers['X-FROM-SW'] = true;
-    
+
     var serialized = {
         url: request.url,
         headers: headers,
@@ -190,7 +250,7 @@ function serialize(request) {
                 return Promise.resolve(serialized);
             });
     }
-    
+
     return Promise.resolve(serialized);
 };
 
@@ -209,14 +269,18 @@ self.addEventListener('fetch', function(event) {
             .then(function(serialized) {
                 addCached(serialized)
                     .then(function() {
-                        sendCached().then(function() {
-                            requestUpdateCache(); 
-                        });
+                        sendCached();
                     });
             });
     } else if (event.request.url.indexOf(nbCacheUrl) > -1) {
-        // We requested the cache number, try to send it and then return the response
-        event.respondWith(sendCached().then(function(nb) {
+        // We requested the cache number
+        
+        if (event.request.url.indexOf('requestSend') > -1) {
+            // We also manually requested a sendinc retry
+            sendCached();
+        }
+        
+        event.respondWith(getNbCachedRequests().then(function(nb) {
             return new Response(
                 JSON.stringify({
                     nb: nb
@@ -237,5 +301,15 @@ self.addEventListener('fetch', function(event) {
                     return fetch(event.request);
                 })
         );
+    }
+});
+
+self.addEventListener('sync', function(event) {
+    console.log('sync', event);
+    // The second tag name is sent by Chrome dev tool to manually test it
+    if (event.tag == 'syncCached' || event.tag == 'test-tag-from-devtools') {
+        console.log('sync requested');
+        sendAlert('SYNC start waiting');
+        event.waitUntil(sendCached(true));
     }
 });
