@@ -12,29 +12,29 @@ a:hover {
 }
 #nbCached {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    bottom: 10px;
+    left: 10px;
     color: red;
     text-decoration: none;
     font-weight: bold;
 }
-#nbCached.loading:before {
+#nbCached.loading:after {
     font-size: 14px;
-    content: '. loading ';
+    content: ' loading .';
     animation: loading 1s linear infinite;
 }
 @keyframes loading {
   0% {
-    content: '. loading ';
+    content: ' loading .';
   }
   25% {
-    content: '.. loading ';
+    content: ' loading ..';
   }
   50% {
-    content: '... loading ';
+    content: ' loading ...';
   }
   75% {
-    content: '.... loading ';
+    content: ' loading ....';
   }
 }
 #btnAppInstall {
