@@ -115,8 +115,8 @@ if ('serviceWorker' in navigator) {
 
                     // SW can force cache checking after sending element
                     navigator.serviceWorker.addEventListener('message', function(event) {
-                        if (event.data.data) {
-                            switch(event.data.data) {
+                        if (event.data.tag) {
+                            switch(event.data.tag) {
                                 case 'cacheNb':
                                     console.log('Cache nb sent by SW');
                                     setCacheNb(event.data.nb);

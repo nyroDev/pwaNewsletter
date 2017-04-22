@@ -38,7 +38,7 @@ function sendCacheNb() {
     console.log('send cache nb');
     getNbCachedRequests().then(function(nb) {
         postMessage({
-            data: 'cacheNb',
+            tag: 'cacheNb',
             nb: nb
         });
     });
@@ -48,7 +48,7 @@ function sendCacheNb() {
 function addClientLoading() {
     console.log('send addLoading');
     postMessage({
-        data: 'addLoading'
+        tag: 'addLoading'
     });
 };
 
@@ -56,7 +56,7 @@ function addClientLoading() {
 function removeClientLoading() {
     console.log('send removeLoading');
     postMessage({
-        data: 'removeLoading'
+        tag: 'removeLoading'
     });
 };
 
@@ -64,7 +64,7 @@ function removeClientLoading() {
 function sendAlert(alert) {
     console.log('send alert');
     postMessage({
-        data: 'alert',
+        tag: 'alert',
         alert: alert
     });
 };
